@@ -5,6 +5,7 @@ import io
 import requests
 from PIL import Image
 from google import genai
+import pydeck as pdk # <--- Added PyDeck for the interactive map
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Zyntax Map Scanner", layout="wide", page_icon="🗺️")
@@ -54,15 +55,54 @@ else:
     
     with col1:
         st.markdown("### Active Market Opportunities")
-        # THE FIX: Explicitly telling Streamlit which columns are the coordinates
-        st.map(df, latitude="Latitude", longitude="Longitude", zoom=12, use_container_width=True)
+        st.info("🖱️ **Click any red pin on the map to instantly load its data.**")
+        
+        # 1. Define the Clickable Map Layer
+        layer = pdk.Layer(
+            "ScatterplotLayer",
+            data=df,
+            get_position=["Longitude", "Latitude"],
+            get_fill_color=[231, 76, 60, 200], # Zyntax Red
+            get_radius=100,
+            pickable=True, # THIS is the magic word that makes it clickable!
+            id="property_pins"
+        )
+        
+        # 2. Set the Map Camera (Centered on the average coordinates)
+        view_state = pdk.ViewState(
+            latitude=df["Latitude"].mean(),
+            longitude=df["Longitude"].mean(),
+            zoom=12.5,
+            pitch=0
+        )
+        
+        # 3. Render the advanced map and listen for clicks
+        deck = pdk.Deck(
+            layers=[layer],
+            initial_view_state=view_state,
+            tooltip={"text": "{Address}\nPrice: {Price_Guide}"}
+        )
+        
+        # map_event captures the data when a user clicks a pin!
+        map_event = st.pydeck_chart(deck, on_select="rerun", selection_mode="single-object")
         
     with col2:
         st.markdown("### Target Property")
-        selected_address = st.selectbox("Select a pin to analyze:", df['Address'].tolist())
+        
+        # 4. Read the Click Event!
+        selected_address = df['Address'].iloc[0] # Default to the first one
+        
+        try:
+            # If the user clicked the map, grab the address from the pin
+            if hasattr(map_event, "selection") and map_event.selection.get("objects"):
+                if map_event.selection["objects"].get("property_pins"):
+                    selected_address = map_event.selection["objects"]["property_pins"][0]["Address"]
+        except Exception as e:
+            pass
+            
         property_data = df[df['Address'] == selected_address].iloc[0]
         
-        st.divider()
+        st.success(f"📍 **{selected_address}**")
         st.metric(label="Verified Lot Size", value=f"{property_data['Lot_Size_sqm']} sqm")
         st.metric(label="Official Zoning", value=property_data['Zoning'])
         st.metric(label="Price Guide", value=property_data['Price_Guide'])
