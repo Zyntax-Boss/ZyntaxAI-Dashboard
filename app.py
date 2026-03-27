@@ -423,7 +423,7 @@ def create_pro_report(data, address):
     doc.add_heading("Critical Constraints:", level=2)
     for c in verdict.get('constraints', []): doc.add_paragraph(c, style='List Bullet')
 
-    disclaimer = doc.add_paragraph("\nDisclaimer: Preliminary AI audit. Does not constitute financial advice. Confirm with professionals.")
+    disclaimer = doc.add_paragraph("\nDisclaimer: Preliminary audit. Does not constitute financial advice. Confirm with professionals.")
     for run in disclaimer.runs: run.font.italic = True; run.font.size = Pt(8); run.font.color.rgb = RGBColor(100, 100, 100)
     
     target_stream = io.BytesIO(); doc.save(target_stream); return target_stream.getvalue()
